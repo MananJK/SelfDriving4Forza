@@ -5,6 +5,7 @@ Of course, here is the complete README formatted as a single markdown file that 
 
 An end-to-end self-driving pipeline for Forza Horizon 4, leveraging computer vision to interpret on-screen data and a Convolutional Neural Network (CNN) to control the vehicle in real-time. This project operates entirely on visual input, requiring no access to the game's internal memory or APIs.
 
+![Project Demo](assets/forzacar.png)
 
 ---
 
