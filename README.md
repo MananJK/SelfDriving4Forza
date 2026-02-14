@@ -1,21 +1,22 @@
 # SelfDriving4Forza
 
-An end-to-end autonomous driving agent for Forza Horizon 4 using computer vision and deep learning. The AI learns to drive by watching human gameplay and detecting the in-game waypoint route.
+An end-to-end autonomous driving agent for Forza Horizon 4 using computer vision and deep learning. The AI learns to drive by watching human gameplay and outputting continuous steering, throttle, and brake values.
 
 ## Features
 
-- **Waypoint Detection**: Extracts the blue route line from the minimap using HSV color filtering and contour detection
-- **End-to-End CNN**: AlexNet-style neural network maps screen pixels directly to driving commands
-- **Burst Steering**: Prevents oscillation by holding steering inputs for fixed durations
-- **Data Collection**: Record your own driving data with synchronized screen/key captures
-- **Class Balancing**: Undersampling pipeline prevents model bias toward common actions
+- **Continuous Control**: Regression-based model outputs smooth steering (-1 to 1), throttle (0 to 1), and brake (0 to 1)
+- **Multi-Input Architecture**: Optionally combines screen and minimap inputs for better context
+- **Data Augmentation**: Brightness, contrast, and blur variations for robustness
+- **Smooth Steering**: Exponential moving average filter prevents jerky movements
+- **Modern Stack**: PyTorch-based training with GPU support
 
 ## Requirements
 
 - Windows 10/11
 - Python 3.8+
 - Forza Horizon 4 (1024x768 windowed mode recommended)
-- Tesseract OCR (optional, for speedometer reading)
+- CUDA-capable GPU (optional, for faster training)
+- Tesseract OCR (optional, for speedometer reading in demo.py)
 
 ## Installation
 
@@ -27,58 +28,90 @@ python -m venv venv
 pip install -r requirements.txt
 ```
 
-## Usage
+For GPU support, install PyTorch with CUDA:
+```bash
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
+```
 
-Run the main CLI:
+## Quick Start
+
 ```bash
 python main.py
 ```
 
 | Option | Description |
 |--------|-------------|
-| 1 | Collect training data (WASD + screen capture) |
-| 2 | Balance collected data across action classes |
-| 3 | Train the Nervenet CNN model |
-| 4 | Test model in self-driving mode |
-| 5 | Waypoint detection visualization only |
-| 6 | Evaluate model metrics |
+| 1 | Collect training data |
+| 2 | Merge multiple data files |
+| 3 | Train model |
+| 4 | Self-driving mode |
+| 5 | Evaluate model on dataset |
+| 6 | View data statistics |
 
-### Standalone Demo
-```bash
-python demo.py
-```
+### Recommended Workflow
+
+1. **Collect Data** (Option 1): Drive naturally in the game. Press `R` to start/pause recording. Aim for 30-60 minutes of varied driving.
+
+2. **Train** (Option 3): Train for 50-100 epochs. The model automatically saves the best checkpoint.
+
+3. **Test** (Option 4): Run the trained model in self-driving mode. Press `P` to pause, `Q` to quit.
 
 ## Architecture
 
-**Nervenet** (AlexNet-style CNN):
-- Input: 160×120×3 RGB image
-- 5 Conv layers with max pooling
-- 2 Fully connected layers (4096 units each)
-- Output: 9-class softmax (W, S, A, D, WA, WD, SA, SD, none)
+**DrivingModel** (screen + minimap):
+```
+Screen Encoder (224x224):          Minimap Encoder (128x128):
+  Conv2d(3→24, stride=2)             Conv2d(3→16, stride=2)
+  Conv2d(24→36, stride=2)            Conv2d(16→32, stride=2)
+  Conv2d(36→48, stride=2)            Conv2d(32→48, stride=2)
+  Conv2d(48→64, stride=2)
+  Conv2d(64→64)
+                ↓
+        Concatenated Features
+                ↓
+         FC(512) → FC(128) → FC(32)
+                ↓
+    ┌───────────┼───────────┐
+    ↓           ↓           ↓
+Steering     Throttle     Brake
+  (tanh)     (sigmoid)   (sigmoid)
+```
+
+**DrivingModelLight** (screen only): Smaller version for faster CPU inference.
 
 ## Project Structure
 
 ```
 SelfDriving4Forza/
-├── main.py           # CLI menu
-├── demo.py           # Standalone waypoint demo
-├── train_model.py    # Model training
-├── test_model.py     # Self-driving inference
-├── nervenet.py       # CNN architecture
-├── draw_lanes.py     # Blue line detection
-├── balance_data.py   # Dataset balancing
-├── direct_input.py   # Keyboard input simulation
-├── ImageGrab.py      # Screen capture
-├── getkeys.py        # Key state detection
-└── tf_fix.py         # TensorFlow GPU config
+├── main.py            # CLI menu
+├── model.py           # PyTorch model architectures
+├── train_pytorch.py   # Training pipeline with augmentation
+├── test_pytorch.py    # Self-driving inference
+├── collect_data.py    # Data collection (continuous labels)
+├── demo.py            # Waypoint detection demo
+├── draw_lanes.py      # Blue line detection utilities
+├── direct_input.py    # Keyboard input simulation
+├── ImageGrab.py       # Screen capture
+├── getkeys.py         # Key state detection
+├── models/            # Saved model checkpoints
+└── training_data_*.npy  # Collected training data
 ```
+
+## Tips for Better Performance
+
+1. **Varied Data**: Record on different tracks, weather conditions, and times of day
+2. **Balanced Driving**: Include plenty of turns (left and right), not just straight roads
+3. **Consistent Minimap Position**: Don't adjust the minimap capture region mid-session
+4. **More Data**: 30+ minutes of driving typically works better than 5 minutes
+5. **Monitor Loss**: If validation loss plateaus, try reducing learning rate
 
 ## Troubleshooting
 
-- **Game window not found**: Adjust `GAME_REGION` in `main.py` (line 20)
-- **No models found**: Train a model first (option 3)
-- **Pillow resampling errors**: `pip install --upgrade pillow`
-- **GPU memory errors**: Already handled by `tf_fix.py`
+- **Model drives straight only**: Data is likely imbalanced. Collect more turning examples.
+- **Jerky steering**: Increase smoothing filter alpha in `test_pytorch.py` (line 22)
+- **Low FPS**: Use `DrivingModelLight` or reduce input resolution
+- **CUDA out of memory**: Reduce batch size or use CPU
+- **Import errors**: Ensure all requirements are installed
 
 ## License
 
