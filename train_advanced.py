@@ -17,38 +17,6 @@ from model_advanced import (
 )
 
 
-class FrameBuffer:
-    """
-    Maintains a buffer of recent frames for temporal modeling.
-    """
-
-    def __init__(self, history_size=5):
-        self.history_size = history_size
-        self.buffer = deque(maxlen=history_size)
-
-    def reset(self):
-        self.buffer.clear()
-
-    def add(self, frame):
-        self.buffer.append(
-            frame.copy() if isinstance(frame, np.ndarray) else frame.clone()
-        )
-
-    def get_history(self, current_frame=None):
-        if current_frame is not None:
-            all_frames = list(self.buffer) + [current_frame]
-        else:
-            all_frames = list(self.buffer)
-
-        while len(all_frames) < self.history_size:
-            if all_frames:
-                all_frames.insert(0, all_frames[0])
-            else:
-                return None
-
-        return all_frames[-self.history_size :]
-
-
 class AdvancedDrivingDataset(Dataset):
     """
     Advanced dataset with temporal frame stacking and route geometry extraction.
@@ -247,29 +215,6 @@ class AdvancedDrivingDataset(Dataset):
                 route_direction, dtype=torch.float32
             ),
         }
-
-
-class FocalSteeringLoss(nn.Module):
-    """
-    Focal loss variant for steering that focuses more on hard examples.
-    Useful for learning difficult maneuvers like sharp turns.
-    """
-
-    def __init__(self, gamma=2.0, alpha=0.25):
-        super().__init__()
-        self.gamma = gamma
-        self.alpha = alpha
-        self.mse = nn.MSELoss(reduction="none")
-
-    def forward(self, pred, target):
-        mse = self.mse(pred.squeeze(), target)
-
-        pt = torch.exp(-mse)
-        focal_weight = (1 - pt) ** self.gamma
-
-        focal_loss = self.alpha * focal_weight * mse
-
-        return focal_loss.mean()
 
 
 def train_advanced_model(

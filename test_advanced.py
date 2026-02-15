@@ -269,17 +269,12 @@ class FrameHistory:
         self.minimap_size = minimap_size
 
         self.screen_history = deque(maxlen=history_size - 1)
-        self.minimap_history = deque(maxlen=history_size - 1)
 
         self.dummy_screen = np.zeros((3, *screen_size), dtype=np.float32)
-        self.dummy_minimap = np.zeros((3, *minimap_size), dtype=np.float32)
 
     def add_frame(self, screen, minimap):
         screen_preprocessed = self._preprocess_screen(screen)
-        minimap_preprocessed = self._preprocess_minimap(minimap)
-
         self.screen_history.append(screen_preprocessed)
-        self.minimap_history.append(minimap_preprocessed)
 
     def get_screen_history(self):
         history = list(self.screen_history)
@@ -289,19 +284,12 @@ class FrameHistory:
 
     def reset(self):
         self.screen_history.clear()
-        self.minimap_history.clear()
 
     def _preprocess_screen(self, screen):
         screen = cv2.resize(screen, self.screen_size)
         screen = screen.astype(np.float32) / 255.0
         screen = np.transpose(screen, (2, 0, 1))
         return screen
-
-    def _preprocess_minimap(self, minimap):
-        minimap = cv2.resize(minimap, self.minimap_size)
-        minimap = minimap.astype(np.float32) / 255.0
-        minimap = np.transpose(minimap, (2, 0, 1))
-        return minimap
 
 
 SCREEN_SIZE = 224

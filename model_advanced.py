@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import torchvision.models as models
 import numpy as np
 import cv2
@@ -208,18 +207,12 @@ class AdvancedDrivingModel(nn.Module):
             nn.Linear(128, 32), nn.ReLU(), nn.Linear(32, 1), nn.Sigmoid()
         )
 
-        self.speed_head = nn.Sequential(
-            nn.Linear(128, 32), nn.ReLU(), nn.Linear(32, 1), nn.ReLU()
-        )
-
         self.hidden_state = None
 
     def reset_hidden(self):
         self.hidden_state = None
 
     def forward(self, screen, minimap, screen_history=None, return_trajectory=True):
-        batch_size = screen.size(0)
-
         screen_features = self.screen_encoder(screen)
 
         route_features, route_direction, route_attention = self.route_detector(minimap)
@@ -254,13 +247,11 @@ class AdvancedDrivingModel(nn.Module):
         steering = self.steering_head(temporal_features)
         throttle = self.throttle_head(temporal_features)
         brake = self.brake_head(temporal_features)
-        speed_pred = self.speed_head(temporal_features)
 
         outputs = {
             "steering": steering,
             "throttle": throttle,
             "brake": brake,
-            "speed_pred": speed_pred,
             "route_direction": route_direction,
             "route_attention": route_attention,
         }
